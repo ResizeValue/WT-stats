@@ -1,0 +1,47 @@
+class FilterManager:
+    """Manager to handle filtering of battles."""
+
+    def __init__(self):
+        self.nation_filter = None  # Filter by nation, e.g., 'usa', 'germany'
+        self.battle_type_filter = None  # Filter by battle type, e.g., 'ground', 'air'
+
+    def apply_filters(self, battles):
+        """Filter battles based on the current filters."""
+        
+        filtered_battles = battles
+        if self.nation_filter:
+            filtered_battles = [
+                battle for battle in filtered_battles if battle.get("Nation") == self.nation_filter
+            ]
+        if self.battle_type_filter:
+            filtered_battles = [
+                battle for battle in filtered_battles if battle.get("Battle Type") == self.battle_type_filter
+            ]
+        return filtered_battles
+
+    def set_nation_filter(self, nation):
+        """Set the nation filter."""
+        
+        if nation.lower() == 'all':
+            self.nation_filter = None
+        else:
+            self.nation_filter = nation
+            
+        print(f"Nation filter set to: {nation}")
+
+    def set_battle_type_filter(self, battle_type):
+        """Set the battle type filter."""
+        
+        if battle_type.lower() == 'all':
+            self.battle_type_filter = None
+        else:
+            self.battle_type_filter = battle_type
+            
+        print(f"Battle type filter set to: {battle_type}")
+
+    def clear_filters(self):
+        """Clear all filters."""
+        
+        self.nation_filter = None
+        self.battle_type_filter = None
+        print("All filters cleared.")
