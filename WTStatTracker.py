@@ -1,128 +1,96 @@
 from datetime import datetime
-from threading import Thread
+import os
 from time import sleep
 from pynput import keyboard
+import keyboard as kb
 import pyperclip
+from src.char_helper import CharHelper
 from src.console_manager import ConsoleManager
-from src.console_printer import ConsolePrinter
 from src.deep_battle_parser import BattleParser
 from src.file_manager import FileManager
 from src.filter_manager import FilterManager
-from src.stat_display_manager import StatDisplayManager
-from src.ui_manager import UIManager
-from src.ui_window import UIWindow
+from src.ui.ui_manager import UIManager
 
 pressed_keys = set()
 
-
 class WTStatTracker:
     def __init__(self):
-        self.battles = []
-        self.ui_manager = UIManager()
-        self.stats = StatDisplayManager()
-        self.file_manager = FileManager()
-        self.filter_manager = FilterManager()
+        self.ui_manager = UIManager(self)
+        self.filter_manager = FilterManager(self)
         self.console_manager = ConsoleManager(self)
-        self.ui_window = UIWindow(self)
-        
-        self.today_date = datetime.now().strftime("%Y-%m-%d")
-        self.load_battles()
-        self.console_mode = False  # Tracks if we are in console mode
-        self.command_filter = None  # Filter for battles (e.g., ground, air)
-        self.ui_window_thread = None
-        self.hold_hotkey = False
 
-    def run_ui_window(self):
-        """Run the UI window in a separate thread."""
-        if self.ui_window_thread and self.ui_window_thread.is_alive():
-            print("UI window is already running.")
-            return
+        self._battles = FileManager.auto_load()
+        self.console_mode = False
+        self.listener = None
 
-        self.ui_window_thread = Thread(target=self.ui_window.show, daemon=True)
-        self.ui_window_thread.start()
+    def get_battles(self):
+        return self.filter_manager.apply_filters(self._battles)
+
+    def set_battles(self, battles):
+        self._battles = battles
 
     def new_session(self):
         """Start a new session."""
-        self.battles = []
-        self.filter_manager.clear_filters()
-        
-
-    def load_battles(self):
-        """Load battles from file."""
-        try:
-            self.battles = self.file_manager.read_result(self.today_date)
-        except FileNotFoundError:
-            print(f"No saved battles found for {self.today_date}. Starting fresh.")
-        except Exception as e:
-            print(f"Error loading battles: {e}")
-
-    def apply_filters_and_update(self):
-        """Apply filters and update the stats display."""
-        filtered_battles = self.filter_manager.apply_filters(self.battles)
-        self.stats.update_stats(filtered_battles)
+        self._battles = []
+        self.ui_manager.update()
+        FileManager.auto_save(self._battles)
 
     def handle_clipboard_parsing(self):
         """Handle parsing of clipboard content."""
-        self.ui_manager.show_popup("Parsing battle info...", "parsing_popup", 10)
+        self.ui_manager.popup_manager.show_popup(
+            "Parsing battle info...", "parsing_popup", 10
+        )
         sleep(0.5)
 
         clipboard_text = pyperclip.paste()
         # print("Clipboard Text:", clipboard_text)
-        
+
         print("Parsing battle info...")
 
         battle_info = BattleParser.parse_battle_info(clipboard_text)
 
         if not battle_info:
-            self.ui_manager.close_popup("parsing_popup")
+            self.ui_manager.popup_manager.close_popup("parsing_popup")
             return
 
         # Check for duplicates
         if any(
             b["Duration"] == battle_info["Duration"]
             and b["Kills"] == battle_info["Kills"]
-            for b in self.battles
+            for b in self._battles
         ):
-            self.ui_manager.close_popup("parsing_popup")
+            self.ui_manager.popup_manager.close_popup("parsing_popup")
             return
 
         print("Parsed Battle Info:", battle_info)
-        self.battles.append(battle_info)
-        self.apply_filters_and_update()
-        self.ui_manager.close_popup("parsing_popup")
-        self.handle_results_saving()
-
-    def handle_results_saving(self):
-        """Save results to file."""
-        self.file_manager.save_result(self.today_date, self.battles)
-        self.ui_manager.show_popup("Results saved to the file", "summary_popup", 2)
-
-    def display_battle_list(self):
-        """Display battles and summary."""
-        ConsolePrinter.print_battle_list(self.battles)
-        ConsolePrinter.print_summary(self.battles)
+        self._battles.append(battle_info)
+        self.ui_manager.update()
+        self.ui_manager.popup_manager.close_popup("parsing_popup")
+        FileManager.auto_save(self._battles)
 
     def run(self):
         """Run the main application loop."""
         print(
             "Press 'ctrl+c' to parse battle info from clipboard. Press 'esc' to exit. Press '`' for console."
         )
-        self.stats.start()
+        self.ui_manager.start()
         sleep(1)
-        self.stats.update_stats(self.battles)
-        self.run_ui_window()
+        self.ui_manager.update()
 
         def on_press(key):
             if key in pressed_keys:
                 return
 
             pressed_keys.add(key)
+
             try:
                 if hasattr(key, "char"):
-                    unicode_order = get_unicode_order_from_char(key.char)
-                    
-                    if is_ctrl_unicode(key.char):
-                        ctrl_char = character_from_ctrl_unicode(unicode_order)
+                    unicode_order = CharHelper.get_unicode_order_from_char(key.char)
+
+                    if CharHelper.is_ctrl_unicode(key.char):
+                        ctrl_char = CharHelper.character_from_ctrl_unicode(
+                            unicode_order
+                        )
                         if ctrl_char == "c":  # Ctrl+C detected
                             pressed_keys.clear()
                             self.handle_clipboard_parsing()
@@ -136,54 +104,34 @@ class WTStatTracker:
                             self.console_manager.run_console()
 
                     elif key.char == "l" and not self.console_manager.running:
-                        self.display_battle_list()
+                        ConsoleManager.print_battle_list(self.get_battles())
+                        ConsoleManager.print_summary(self.get_battles())
 
                 if key == keyboard.Key.home:
-                    self.handle_results_saving()
+                    today = datetime.now().strftime("%Y-%m-%d")
+                    FileManager.save_result(today, self._battles)
                 elif key == keyboard.Key.end:
                     print("Exiting...")
                     return False
 
-            except AttributeError as e:
-                print(f"AttributeError: {e}")
+            except Exception as e:
+                print(f"Error processing key press: {e}")
 
         def on_release(key):
             pressed_keys.discard(key)
 
         with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
+            self.listener = listener
             listener.join()
 
+    def stop(self):
+        """Gracefully stop the application."""
+        print("Stopping WTStatTracker...")
+        
+        # Save current state
+        FileManager.auto_save(self._battles)
 
-
-# If unicode number is 0-31 or 127, then it is a control unicode.
-# Because pynput only registers/only fails to convert the alphabet, this will not return True for the other six control codes.
-def is_ctrl_unicode(code: str) -> bool:
-    """Check if the unicode is a control character."""
-    if not code or len(code) != 1:  # Ensure code is not None and has length 1
-        return False
-    return 0 < ord(code) < 26
-
-
-# param: char
-def get_unicode_order_from_char(char: str) -> int:
-    if char is None or type(char) is not str:
-        return -1
-
-    if not char:
-        return -1
-
-    if len(char) != 1:
-        return -1
-
-    return ord(char)
-
-
-# Returns the character from control + character unicode.
-# Example: ctrl + A -> (pynput) -> \u0001 -> (This method) -> a
-# There are 32 ctrl combinations, but pynput does not r1egister/struggle the non-alphabetic codes, so they will not be considered.
-def character_from_ctrl_unicode(order: int) -> str:
-    if not 0 < order < 26:
-        return
-    pool = "abcdefghijklmnopqrstuvwxyz"
-    assert len(pool) == 26
-    return pool[order - 1]
+        sleep(1)
+        # Exit application
+        print("Application stopped.")
+        os._exit(0)

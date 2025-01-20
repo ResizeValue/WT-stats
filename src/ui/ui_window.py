@@ -1,12 +1,21 @@
+from datetime import datetime
 import os
+from time import sleep
 from tkinter import Tk, ttk, StringVar, Label, Button, Frame, filedialog, messagebox
 import json
+
+from src.file_manager import FileManager
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from WTStatTracker import WTStatTracker
 
 
 class UIWindow:
     """UI window for displaying battles and filters."""
 
-    def __init__(self, tracker):
+    def __init__(self, tracker: "WTStatTracker"):
         """
         Initialize the UI window.
 
@@ -132,19 +141,21 @@ class UIWindow:
         self.window.protocol("WM_DELETE_WINDOW", self.close)
         self.window.mainloop()
 
+    def update(self):
+        filtered_battles = self.tracker.get_battles()
+        self.populate_table(filtered_battles)
+
     def refresh_ui(self):
         """Periodically refresh the table and summary."""
-        filtered_battles = self.tracker.filter_manager.apply_filters(
-            self.tracker.battles
-        )
-        self.populate_table(filtered_battles)
+        self.update()
         self.window.after(1000, self.refresh_ui)  # Refresh every second
         
     def close(self):
-        """Close the UI window."""
+        """Close the UI window and terminate the application."""
         if self.window:
             self.window.destroy()
-            self.window = None
+            self.tracker.stop()
+
 
     def populate_table(self, battles):
         """Populate the table with battles."""
@@ -184,44 +195,11 @@ class UIWindow:
         self.update_summary(battles)
 
     def open_json(self):
-        """Open a JSON file and load battles."""
-        default_dir = os.path.dirname(os.path.abspath(__file__))  # Get the program directory
-
-        file_path = filedialog.askopenfilename(
-            title="Open JSON File",
-            initialdir=default_dir,  # Set default directory
-            filetypes=[("JSON Files", "*.json")],
-        )
-        if not file_path:
-            return
-
-        try:
-            with open(file_path, "r") as file:
-                data = json.load(file)
-                self.tracker.battles = data
-                self.populate_table(data)
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to open file: {e}")
+        battles = FileManager.read_result_dialog()
+        self.tracker.set_battles(battles)
 
     def save_json(self):
-        """Save battles to a JSON file."""
-        default_dir = os.path.dirname(os.path.abspath(__file__))  # Get the program directory
-
-        file_path = filedialog.asksaveasfilename(
-            title="Save JSON File",
-            initialdir=default_dir,  # Set default directory
-            defaultextension=".json",
-            filetypes=[("JSON Files", "*.json")],
-        )
-        if not file_path:
-            return
-
-        try:
-            with open(file_path, "w") as file:
-                json.dump(self.tracker.battles, file, indent=4)
-            messagebox.showinfo("Success", "File saved successfully!")
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to save file: {e}")
+        FileManager.save_result_dialog(self.tracker._battles)
 
     def sort_by(self, column):
         """Sort the table by the given column."""
@@ -231,7 +209,7 @@ class UIWindow:
             self.sort_column = column
             self.sort_reverse = False
 
-        battles = self.tracker.battles
+        battles = self.tracker.get_battles()
         if column in ["Silver Lions", "Experience", "Kills"]:
             sorted_battles = sorted(
                 battles,
@@ -263,20 +241,12 @@ class UIWindow:
 
         self.tracker.filter_manager.set_nation_filter(nation_filter)
         self.tracker.filter_manager.set_battle_type_filter(battle_type_filter)
-        self.tracker.filter_manager.apply_filters(self.tracker.battles)
-
-        filtered_battles = self.tracker.filter_manager.apply_filters(
-            self.tracker.battles
-        )
-        self.tracker.stats.update_stats(filtered_battles)
-        self.populate_table(filtered_battles)
 
     def clear_filters(self):
         """Clear all filters and refresh the table."""
         self.tracker.filter_manager.clear_filters()
         self.nation_filter_var.set("All")
         self.battle_type_filter_var.set("All")
-        self.populate_table(self.tracker.battles)
 
     def update_summary(self, battles):
         """Update the summary row based on battles."""
@@ -308,6 +278,6 @@ class UIWindow:
         )
 
         self.summary_label.config(
-            text=f"Summary: Games {wins}-{losses} ({ percentage }) | "
+            text=f"Summary: Games {wins}-{losses} ({ percentage }) | Duration: {total_minutes:.1f} min | "
                  f"Silver Earned: {total_silver:,} | Exp Earned: {total_exp:,} | Avg Silver: {avg_silver_per_min:.1f} | Avg Exp: {avg_exp_per_min:.1f}"
         )

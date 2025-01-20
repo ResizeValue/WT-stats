@@ -1,9 +1,17 @@
+# typecheck
+
+import typing
+
+if typing.TYPE_CHECKING:
+    from WTStatTracker import WTStatTracker
+
 class FilterManager:
     """Manager to handle filtering of battles."""
 
-    def __init__(self):
+    def __init__(self, tracker: 'WTStatTracker'):
         self.nation_filter = None  # Filter by nation, e.g., 'usa', 'germany'
         self.battle_type_filter = None  # Filter by battle type, e.g., 'ground', 'air'
+        self.tracker = tracker
 
     def apply_filters(self, battles):
         """Filter battles based on the current filters."""
@@ -30,6 +38,7 @@ class FilterManager:
             self.nation_filter = nation
             
         print(f"Nation filter set to: {nation}")
+        self.tracker.ui_manager.update()
 
     def set_battle_type_filter(self, battle_type):
         """Set the battle type filter."""
@@ -40,6 +49,7 @@ class FilterManager:
             self.battle_type_filter = battle_type
             
         print(f"Battle type filter set to: {battle_type}")
+        self.tracker.ui_manager.update()
 
     def clear_filters(self):
         """Clear all filters."""
@@ -47,3 +57,4 @@ class FilterManager:
         self.nation_filter = None
         self.battle_type_filter = None
         print("All filters cleared.")
+        self.tracker.ui_manager.update()

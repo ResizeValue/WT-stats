@@ -2,7 +2,7 @@ from threading import Thread, Lock
 import tkinter as tk
 
 
-class UIManager:
+class PopupManager:
     def __init__(self):
         self.popups = {}  # Store references to popups by their IDs
         self.lock = Lock()  # Lock for thread-safe access to popups
@@ -59,32 +59,3 @@ class UIManager:
                         popup.destroy()
 
                     popup.after(100, destroy)
-
-    def show_running_indicator(self):
-        """
-        Display a small stylish indicator with 'WT Stats' text in the top-left corner.
-        """
-        def indicator():
-            root = tk.Tk()
-            root.overrideredirect(True)  # Remove window borders
-            root.geometry("100x30+10+10")  # Small rectangle at top-left corner
-            root.attributes("-topmost", True)  # Keep it on top
-
-            # Set modern styling
-            frame = tk.Frame(root, bg="#282C34", bd=0)  # Dark background
-            frame.pack(fill="both", expand=True)
-
-            # Add the text
-            label = tk.Label(
-                frame,
-                text="WT Stats",
-                font=("Helvetica", 10, "bold"),
-                fg="white",
-                bg="#282C34",
-            )
-            label.pack(expand=True)
-
-            root.mainloop()
-
-        # Run the indicator in a separate thread to avoid blocking the main program
-        Thread(target=indicator, daemon=True).start()
