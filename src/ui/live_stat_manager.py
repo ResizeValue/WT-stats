@@ -1,32 +1,41 @@
-from threading import Thread
+from threading import Thread, Event
 import tkinter as tk
-
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from WTStatTracker import WTStatTracker
+import ctypes
 
 class LiveStatManager:
     """Manager to display game stats in the bottom-left corner as a single-row text."""
 
-    def __init__(self, tracker: "WTStatTracker"):
+    def __init__(self, tracker):
         self.stats_window = None
         self.running = False
         self.tracker = tracker
+        self.stop_event = Event()  # Event to signal the thread to stop
+        self.frame = None
 
     def start(self):
         """Start the stats display."""
         if not self.running:
             self.running = True
+            self.stop_event.clear()
             Thread(target=self._run_display, daemon=True).start()
 
     def stop(self):
         """Stop the stats display."""
-        if self.running and self.stats_window:
-            self.stats_window.destroy()
+        if self.running:
             self.running = False
-            
-        return True
+            self.stop_event.set()  # Signal the thread to stop
+            if self.stats_window:
+                self.stats_window.quit()  # Safely end the mainloop
+                self.stats_window = None
+
+    def toggle(self):
+        """Toggle the stats display."""
+        if self.running:
+            self.running = False
+            self.frame.pack_forget()  # Hide the frame
+        else:
+            self.running = True
+            self.frame.pack(expand=True, fill="both")
 
     def update(self):
         battles = self.tracker.get_battles()
@@ -71,13 +80,11 @@ class LiveStatManager:
             stats_text = "WT Stats | No battles found."
 
         # Update the label text
-        if self.stats_window:
+        if self.stats_window and self.stats_label:
             self.stats_label.config(text=stats_text)
             
     def _run_display(self):
         """Run the tkinter window to display stats."""
-        import ctypes
-
         # Enable DPI awareness for sharp rendering
         ctypes.windll.shcore.SetProcessDpiAwareness(1)
 
@@ -94,7 +101,7 @@ class LiveStatManager:
         self.stats_window.wm_attributes("-alpha", 0.9)
 
         # Create a modern frame with padding
-        frame = tk.Frame(
+        self.frame = tk.Frame(
             self.stats_window,
             bg="#1E222A",
             relief="flat",
@@ -102,11 +109,11 @@ class LiveStatManager:
             padx=2,
             pady=2,
         )
-        frame.pack(expand=True, fill="both")
+        self.frame.pack(expand=True, fill="both")
 
         # Add a stylish label for stats
         self.stats_label = tk.Label(
-            frame,
+            self.frame,
             text="",
             fg="white",
             bg="#1E222A",
@@ -116,8 +123,17 @@ class LiveStatManager:
         )
         self.stats_label.pack(expand=True, fill="both")
 
-        # Shadow effect (optional, Windows only)
-        self.stats_window.wm_attributes("-toolwindow", True)
-        self.stats_window.update_idletasks()
+        # Periodically check if stop_event is set
+        self._periodic_check()
 
         self.stats_window.mainloop()
+
+    def _periodic_check(self):
+        """Check periodically if the stop event is set."""
+        if self.stop_event.is_set():
+            if self.stats_window:  # Ensure the stats_window is not None
+                self.stats_window.quit()
+        else:
+            if self.stats_window:  # Ensure the stats_window is not None
+                self.stats_window.after(100, self._periodic_check)
+

@@ -75,6 +75,11 @@ class UIWindow:
         Button(filter_frame, text="New Session", command=self.tracker.new_session).pack(
             side="left", padx=10
         )
+        Button(
+            filter_frame,
+            text="Toggle Live Stat",
+            command=self.tracker.ui_manager.live_stats.toggle,
+        ).pack(side="left", padx=10)
 
         # Battle table
         self.battle_table = ttk.Treeview(

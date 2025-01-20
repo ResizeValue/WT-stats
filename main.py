@@ -1,9 +1,7 @@
-import os
-from time import sleep
 from WTStatTracker import WTStatTracker
 from src.version_manager import VersionManager
 
-CURRENT_VERSION = "0.0.0"
+CURRENT_VERSION = "0.2.0"
 REPO_OWNER = "ResizeValue"
 REPO_NAME = "WT-stats"
 
@@ -14,7 +12,6 @@ if __name__ == "__main__":
     tracker = WTStatTracker()
 
     try:
-        # Run the application
         tracker.run()
     except KeyboardInterrupt:
         print("\nExiting...")
