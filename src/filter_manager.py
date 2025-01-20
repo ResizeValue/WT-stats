@@ -11,16 +11,18 @@ class FilterManager:
         filtered_battles = battles
         if self.nation_filter:
             filtered_battles = [
-                battle for battle in filtered_battles if battle.get("Nation") == self.nation_filter
+                battle for battle in filtered_battles if battle.get("Nation").lower() == self.nation_filter.lower()
             ]
         if self.battle_type_filter:
             filtered_battles = [
-                battle for battle in filtered_battles if battle.get("Battle Type") == self.battle_type_filter
+                battle for battle in filtered_battles if battle.get("Battle Type").lower() == self.battle_type_filter.lower()
             ]
         return filtered_battles
 
     def set_nation_filter(self, nation):
         """Set the nation filter."""
+        
+        print(f"Nation filter set to: {nation}")
         
         if nation.lower() == 'all':
             self.nation_filter = None

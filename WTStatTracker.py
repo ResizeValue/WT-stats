@@ -1,4 +1,5 @@
 from datetime import datetime
+from threading import Thread
 from time import sleep
 from pynput import keyboard
 import pyperclip
@@ -9,6 +10,7 @@ from src.file_manager import FileManager
 from src.filter_manager import FilterManager
 from src.stat_display_manager import StatDisplayManager
 from src.ui_manager import UIManager
+from src.ui_window import UIWindow
 
 pressed_keys = set()
 
@@ -21,10 +23,29 @@ class WTStatTracker:
         self.file_manager = FileManager()
         self.filter_manager = FilterManager()
         self.console_manager = ConsoleManager(self)
+        self.ui_window = UIWindow(self)
+        
         self.today_date = datetime.now().strftime("%Y-%m-%d")
         self.load_battles()
         self.console_mode = False  # Tracks if we are in console mode
         self.command_filter = None  # Filter for battles (e.g., ground, air)
+        self.ui_window_thread = None
+        self.hold_hotkey = False
+
+    def run_ui_window(self):
+        """Run the UI window in a separate thread."""
+        if self.ui_window_thread and self.ui_window_thread.is_alive():
+            print("UI window is already running.")
+            return
+
+        self.ui_window_thread = Thread(target=self.ui_window.show, daemon=True)
+        self.ui_window_thread.start()
+
+    def new_session(self):
+        """Start a new session."""
+        self.battles = []
+        self.filter_manager.clear_filters()
+        
 
     def load_battles(self):
         """Load battles from file."""
@@ -46,7 +67,9 @@ class WTStatTracker:
         sleep(0.5)
 
         clipboard_text = pyperclip.paste()
-        print("Clipboard Text:", clipboard_text)
+        # print("Clipboard Text:", clipboard_text)
+        
+        print("Parsing battle info...")
 
         battle_info = BattleParser.parse_battle_info(clipboard_text)
 
@@ -67,7 +90,7 @@ class WTStatTracker:
         self.battles.append(battle_info)
         self.apply_filters_and_update()
         self.ui_manager.close_popup("parsing_popup")
-        self.stats.update_stats(self.battles)
+        self.handle_results_saving()
 
     def handle_results_saving(self):
         """Save results to file."""
@@ -87,6 +110,7 @@ class WTStatTracker:
         self.stats.start()
         sleep(1)
         self.stats.update_stats(self.battles)
+        self.run_ui_window()
 
         def on_press(key):
             if key in pressed_keys:
@@ -96,13 +120,14 @@ class WTStatTracker:
             try:
                 if hasattr(key, "char"):
                     unicode_order = get_unicode_order_from_char(key.char)
+                    
                     if is_ctrl_unicode(key.char):
                         ctrl_char = character_from_ctrl_unicode(unicode_order)
                         if ctrl_char == "c":  # Ctrl+C detected
                             pressed_keys.clear()
                             self.handle_clipboard_parsing()
 
-                    elif key.char == "`":  # Toggle console mode
+                    elif key.char == "\\":  # Toggle console mode
                         if self.console_manager.running:
                             print("Exiting console mode...")
                             self.console_manager.stop_console()
@@ -119,8 +144,8 @@ class WTStatTracker:
                     print("Exiting...")
                     return False
 
-            except AttributeError:
-                pass
+            except AttributeError as e:
+                print(f"AttributeError: {e}")
 
         def on_release(key):
             pressed_keys.discard(key)
