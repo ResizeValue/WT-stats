@@ -1,7 +1,7 @@
 from WTStatTracker import WTStatTracker
 from src.version_manager import VersionManager
 
-CURRENT_VERSION = "0.2.0"
+CURRENT_VERSION = "0.2.1"
 REPO_OWNER = "ResizeValue"
 REPO_NAME = "WT-stats"
 
