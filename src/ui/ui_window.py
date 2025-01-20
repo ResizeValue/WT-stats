@@ -72,7 +72,9 @@ class UIWindow:
         Button(filter_frame, text="Save JSON", command=self.save_json).pack(
             side="left", padx=10
         )
-        Button(filter_frame, text="New Session", command=self.tracker.new_session).pack(side="left", padx=10)
+        Button(filter_frame, text="New Session", command=self.tracker.new_session).pack(
+            side="left", padx=10
+        )
 
         # Battle table
         self.battle_table = ttk.Treeview(
@@ -107,7 +109,9 @@ class UIWindow:
             "Exp/Min",
         ]
         for header in headers:
-            self.battle_table.heading(header, text=header, command=lambda h=header: self.sort_by(h))
+            self.battle_table.heading(
+                header, text=header, command=lambda h=header: self.sort_by(h)
+            )
 
         # Set column widths
         self.battle_table.column("Win/Lose", width=100, anchor="center")
@@ -145,13 +149,12 @@ class UIWindow:
         """Periodically refresh the table and summary."""
         self.update()
         self.window.after(1000, self.refresh_ui)  # Refresh every second
-        
+
     def close(self):
         """Close the UI window and terminate the application."""
         if self.window:
             self.window.destroy()
             self.tracker.stop()
-
 
     def populate_table(self, battles):
         """Populate the table with battles."""
@@ -159,13 +162,19 @@ class UIWindow:
             self.battle_table.delete(row)
 
         for battle in battles:
-            duration = battle.get("Duration", "0:0")  # Default to "0:0" if Duration is missing
-            minutes, seconds = map(int, duration.split(":"))  # Split and convert to integers
+            duration = battle.get(
+                "Duration", "0:0"
+            )  # Default to "0:0" if Duration is missing
+            minutes, seconds = map(
+                int, duration.split(":")
+            )  # Split and convert to integers
             total_minutes = minutes + seconds / 60  # Convert total time to minutes
 
             # Calculate silver and experience per minute
             silver_per_min = (
-                battle.get("Silver Lions", 0) / total_minutes if total_minutes > 0 else 0
+                battle.get("Silver Lions", 0) / total_minutes
+                if total_minutes > 0
+                else 0
             )
             exp_per_min = (
                 battle.get("Experience", 0) / total_minutes if total_minutes > 0 else 0
@@ -216,8 +225,10 @@ class UIWindow:
             sorted_battles = sorted(
                 battles,
                 key=lambda b: sum(
-                    int(x) * 60 ** i
-                    for i, x in enumerate(reversed(b.get("Duration", "0:00").split(":")))
+                    int(x) * 60**i
+                    for i, x in enumerate(
+                        reversed(b.get("Duration", "0:00").split(":"))
+                    )
                 ),
                 reverse=self.sort_reverse,
             )
@@ -255,7 +266,7 @@ class UIWindow:
         percentage = f"{(wins / total_games * 100):.1f}%" if total_games > 0 else "0%"
         total_silver = sum(battle.get("Silver Lions", 0) for battle in battles)
         total_exp = sum(battle.get("Experience", 0) for battle in battles)
-        
+
         total_minutes = 0
         for battle in battles:
             duration = battle.get("Duration", "0:0")  # Default to "0:0"
@@ -266,14 +277,10 @@ class UIWindow:
                 continue  # Skip invalid duration formats
 
         # Calculate averages
-        avg_silver_per_min = (
-            total_silver / total_minutes if total_minutes > 0 else 0
-        )
-        avg_exp_per_min = (
-            total_exp / total_minutes if total_minutes > 0 else 0
-        )
+        avg_silver_per_min = total_silver / total_minutes if total_minutes > 0 else 0
+        avg_exp_per_min = total_exp / total_minutes if total_minutes > 0 else 0
 
         self.summary_label.config(
             text=f"Summary: Games {wins}-{losses} ({ percentage }) | Duration: {total_minutes:.1f} min | "
-                 f"Silver Earned: {total_silver:,} | Exp Earned: {total_exp:,} | Avg Silver: {avg_silver_per_min:.1f} | Avg Exp: {avg_exp_per_min:.1f}"
+            f"Silver Earned: {total_silver:,} | Exp Earned: {total_exp:,} | Avg Silver: {avg_silver_per_min:.1f} | Avg Exp: {avg_exp_per_min:.1f}"
         )

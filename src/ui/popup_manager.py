@@ -16,6 +16,7 @@ class PopupManager:
             message (str): The message to display in the popup.
             popup_id (str): An optional ID for the popup to manage it.
         """
+
         def popup():
             popup_window = tk.Tk()
             popup_window.overrideredirect(True)  # Remove the window border
@@ -26,7 +27,11 @@ class PopupManager:
 
             # Create a label for the message
             label = tk.Label(
-                popup_window, text=message, bg="black", fg="white", font=("Helvetica", 10)
+                popup_window,
+                text=message,
+                bg="black",
+                fg="white",
+                font=("Helvetica", 10),
             )
             label.pack(expand=True, fill="both")
 
@@ -37,25 +42,25 @@ class PopupManager:
 
             if duration > 0:
                 popup_window.after(duration * 1000, lambda: self.close_popup(popup_id))
-                
+
             popup_window.mainloop()
 
         popup_thread = Thread(target=popup, daemon=True)
         popup_thread.start()
 
     def close_popup(self, popup_id):
-            """
-            Close the popup by its ID.
+        """
+        Close the popup by its ID.
 
-            Args:
-                popup_id (str): The ID of the popup to close.
-            """
-            with self.lock:
-                if popup_id in self.popups:
-                    popup = self.popups.pop(popup_id)
+        Args:
+            popup_id (str): The ID of the popup to close.
+        """
+        with self.lock:
+            if popup_id in self.popups:
+                popup = self.popups.pop(popup_id)
 
-                    # Use after() to safely destroy the popup
-                    def destroy():
-                        popup.destroy()
+                # Use after() to safely destroy the popup
+                def destroy():
+                    popup.destroy()
 
-                    popup.after(100, destroy)
+                popup.after(100, destroy)

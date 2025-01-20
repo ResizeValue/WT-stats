@@ -13,6 +13,7 @@ from src.ui.ui_manager import UIManager
 
 pressed_keys = set()
 
+
 class WTStatTracker:
     def __init__(self):
         self.ui_manager = UIManager(self)
@@ -127,7 +128,7 @@ class WTStatTracker:
     def stop(self):
         """Gracefully stop the application."""
         print("Stopping WTStatTracker...")
-        
+
         # Save current state
         FileManager.auto_save(self._battles)
 

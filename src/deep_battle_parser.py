@@ -3,6 +3,7 @@ import re
 import src.data.vehicles as vehicles
 import src.data.vehicles_ru as vehicles_ru
 
+
 class BattleParser:
     @staticmethod
     def parse_researched_units(text):
@@ -54,7 +55,7 @@ class BattleParser:
                 for line in unit_section.splitlines()
                 if ":" in line
             ]
-            
+
         return []
 
     @staticmethod
