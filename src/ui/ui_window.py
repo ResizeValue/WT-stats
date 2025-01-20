@@ -1,8 +1,4 @@
-from datetime import datetime
-import os
-from time import sleep
-from tkinter import Tk, ttk, StringVar, Label, Button, Frame, filedialog, messagebox
-import json
+from tkinter import Tk, ttk, StringVar, Label, Button, Frame
 
 from src.file_manager import FileManager
 
