@@ -20,7 +20,6 @@ class WTStatTracker:
         self.filter_manager = FilterManager(self)
         self.console_manager = ConsoleManager(self)
 
-        self._battles = FileManager.auto_load()
         self.console_mode = False
         self.listener = None
 
@@ -74,6 +73,7 @@ class WTStatTracker:
         print(
             "Press 'ctrl+c' to parse battle info from clipboard. Press 'esc' to exit. Press '`' for console."
         )
+        self._battles = FileManager.auto_load()
         self.ui_manager.start()
         sleep(1)
         self.ui_manager.update()

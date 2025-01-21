@@ -1,7 +1,7 @@
 from WTStatTracker import WTStatTracker
 from src.version_manager import VersionManager
 
-CURRENT_VERSION = "0.2.2"
+CURRENT_VERSION = "0.2.0"
 REPO_OWNER = "ResizeValue"
 REPO_NAME = "WT-stats"
 
@@ -17,5 +17,3 @@ if __name__ == "__main__":
         print("\nExiting...")
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
-    finally:
-        tracker.stop()
