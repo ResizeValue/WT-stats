@@ -189,11 +189,11 @@ class BattleParser:
         if any(unit in researched_units for unit in vehicles.usa_aircraft):
             return "air ; USA"
 
-        if any(unit in researched_units for unit in vehicles.ussr_aircraft):
-            return "air ; USSR"
-
         if any(unit in researched_units for unit in vehicles.ussr_tanks):
             return "ground ; USSR"
+
+        if any(unit in researched_units for unit in vehicles.ussr_aircraft):
+            return "air ; USSR"
 
         if any(unit in researched_units for unit in vehicles.uk_tanks):
             return "ground ; UK"

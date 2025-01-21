@@ -47,7 +47,7 @@ class UIWindow:
         self.nation_filter_dropdown = ttk.Combobox(
             filter_frame,
             textvariable=self.nation_filter_var,
-            values=["All", "USA", "Germany", "Russia", "France", "UK"],
+            values=["All", "USA", "Germany", "USSR", "France", "UK"],
         )
         self.nation_filter_dropdown.pack(side="left", padx=5)
         self.nation_filter_dropdown.bind("<<ComboboxSelected>>", self.apply_filters)
