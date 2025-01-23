@@ -92,6 +92,7 @@ german_ground_vehicles = [
     "FlaRakPz 1 (Roland 2)",
     "FlaRakPz 1 (Roland 1)",
     "FlaRakPz 1 (Roland)",
+    "Osa-AK(Germany)",
 ]
 
 french_tanks = [

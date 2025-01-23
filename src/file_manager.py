@@ -31,6 +31,10 @@ class FileManager:
             return []
 
         with open(file_path, "r") as file:
+            # check if the file is empty
+            if os.stat(file_path).st_size == 0:
+                return []
+            
             return json.load(file)
 
         print(f"Auto-loaded battles from {file_path}")

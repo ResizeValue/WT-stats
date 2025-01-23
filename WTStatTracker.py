@@ -22,6 +22,7 @@ class WTStatTracker:
 
         self.console_mode = False
         self.listener = None
+        self._battles = []
 
     def get_battles(self):
         return self.filter_manager.apply_filters(self._battles)
@@ -71,11 +72,12 @@ class WTStatTracker:
     def run(self):
         """Run the main application loop."""
         print(
-            "Press 'ctrl+c' to parse battle info from clipboard. Press 'esc' to exit. Press '`' for console."
+            "Press 'ctrl+c' to parse battle info from clipboard."
         )
-        self._battles = FileManager.auto_load()
+        
         self.ui_manager.start()
         sleep(1)
+        self._battles = FileManager.auto_load()
         self.ui_manager.update()
 
         def on_press(key):
@@ -128,9 +130,6 @@ class WTStatTracker:
     def stop(self):
         """Gracefully stop the application."""
         print("Stopping WTStatTracker...")
-
-        # Save current state
-        FileManager.auto_save(self._battles)
 
         sleep(1)
         # Exit application
