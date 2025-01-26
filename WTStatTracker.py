@@ -1,6 +1,8 @@
 from datetime import datetime
 import os
+from threading import Event, Thread
 from time import sleep
+import traceback
 from pynput import keyboard
 import keyboard as kb
 import pyperclip
@@ -37,19 +39,47 @@ class WTStatTracker:
         FileManager.auto_save(self._battles)
 
     def handle_clipboard_parsing(self):
-        """Handle parsing of clipboard content."""
+        """Handle parsing of clipboard content with a timeout."""
         self.ui_manager.popup_manager.show_popup(
             "Parsing battle info...", "parsing_popup", 10
         )
         sleep(0.5)
 
         clipboard_text = pyperclip.paste()
-        # print("Clipboard Text:", clipboard_text)
-
         print("Parsing battle info...")
 
-        battle_info = BattleParser.parse_battle_info(clipboard_text)
+        # Define a container for the result
+        result = {"battle_info": None, "error": None}
+        finished_event = Event()
 
+        def parse_task():
+            """Run the parsing task."""
+            try:
+                result["battle_info"] = BattleParser.parse_battle_info(clipboard_text)
+            except Exception as e:
+                result["error"] = traceback.format_exc()
+            finally:
+                finished_event.set()  # Notify that parsing is complete
+
+        # Start the parsing thread
+        thread = Thread(target=parse_task)
+        thread.start()
+
+        # Wait for the thread to finish with a timeout
+        timeout_seconds = 5
+        if not finished_event.wait(timeout_seconds):
+            print(f"Parsing battle info timed out after {timeout_seconds} seconds.")
+            self.ui_manager.popup_manager.close_popup("parsing_popup")
+            return
+
+        # Check for errors in parsing
+        if result["error"]:
+            print(f"Error during parsing: {result['error']}")
+            self.ui_manager.popup_manager.close_popup("parsing_popup")
+            return
+
+        # Get the parsed battle info
+        battle_info = result["battle_info"]
         if not battle_info:
             self.ui_manager.popup_manager.close_popup("parsing_popup")
             return
@@ -60,6 +90,7 @@ class WTStatTracker:
             and b["Kills"] == battle_info["Kills"]
             for b in self._battles
         ):
+            print("Duplicate battle info detected. Ignoring.")
             self.ui_manager.popup_manager.close_popup("parsing_popup")
             return
 
