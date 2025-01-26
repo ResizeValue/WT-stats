@@ -1,6 +1,6 @@
 from datetime import datetime
 import os
-from threading import Event, Thread
+from threading import Event, Thread, Timer
 from time import sleep
 import traceback
 from pynput import keyboard
@@ -25,6 +25,7 @@ class WTStatTracker:
         self.console_mode = False
         self.listener = None
         self._battles = []
+        self._save_timer = None
 
     def get_battles(self):
         return self.filter_manager.apply_filters(self._battles)
@@ -100,7 +101,24 @@ class WTStatTracker:
         self._battles.append(battle_info)
         self.ui_manager.update()
         self.ui_manager.popup_manager.close_popup(popup_id)
+        self.startSaveTimer()
+        
+
+    def startSaveTimer(self):
+        # Start timer to save battles if timer already exists, cancel it and start a new one
+        if self._save_timer:
+            self._save_timer.cancel()
+            print("Save timer reset")
+            
+        self._save_timer = Timer(10, self.saveBattles)
+        self._save_timer.start()
+        print("Save timer started")
+        
+        
+    def saveBattles(self):
         FileManager.auto_save(self._battles)
+        self._save_timer = None
+        self.ui_manager.popup_manager.show_popup("Battles saved", 2)
 
     def run(self):
         """Run the main application loop."""

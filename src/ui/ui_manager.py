@@ -33,6 +33,10 @@ class UIManager:
     
     def update(self):
         """Update the UI window with the latest stats."""
+        thread = Thread(target=self._update, daemon=True)
+        thread.start()
+    
+    def _update(self):
+        """Update the UI window with the latest stats."""
         self.live_stats.update()
         self.ui_window.update()
-        
