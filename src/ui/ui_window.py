@@ -164,7 +164,12 @@ class UIWindow:
     def populate_table(self, battles):
         """Populate the table with battles."""
         for row in self.battle_table.get_children():
-            self.battle_table.delete(row)
+            # Check if row is not empty
+            try:
+                if row:
+                    self.battle_table.delete(row)
+            except:
+                pass
 
         for battle in battles:
             duration = battle.get(
