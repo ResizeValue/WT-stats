@@ -40,9 +40,11 @@ class WTStatTracker:
 
     def handle_clipboard_parsing(self):
         """Handle parsing of clipboard content with a timeout."""
-        self.ui_manager.popup_manager.show_popup(
-            "Parsing battle info...", "parsing_popup", 10
+        
+        popup_id = self.ui_manager.popup_manager.show_popup(
+            "Parsing battle info...", 5
         )
+        
         sleep(0.5)
 
         clipboard_text = pyperclip.paste()
@@ -69,13 +71,13 @@ class WTStatTracker:
         timeout_seconds = 5
         if not finished_event.wait(timeout_seconds):
             print(f"Parsing battle info timed out after {timeout_seconds} seconds.")
-            self.ui_manager.popup_manager.close_popup("parsing_popup")
+            self.ui_manager.popup_manager.close_popup(popup_id)
             return
 
         # Check for errors in parsing
         if result["error"]:
             print(f"Error during parsing: {result['error']}")
-            self.ui_manager.popup_manager.close_popup("parsing_popup")
+            self.ui_manager.popup_manager.close_popup(popup_id)
             return
 
         # Get the parsed battle info
@@ -91,13 +93,13 @@ class WTStatTracker:
             for b in self._battles
         ):
             print("Duplicate battle info detected. Ignoring.")
-            self.ui_manager.popup_manager.close_popup("parsing_popup")
+            self.ui_manager.popup_manager.close_popup(popup_id)
             return
 
         print("Parsed Battle Info:", battle_info)
         self._battles.append(battle_info)
         self.ui_manager.update()
-        self.ui_manager.popup_manager.close_popup("parsing_popup")
+        self.ui_manager.popup_manager.close_popup(popup_id)
         FileManager.auto_save(self._battles)
 
     def run(self):

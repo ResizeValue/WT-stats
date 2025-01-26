@@ -1,5 +1,6 @@
 from threading import Thread, Lock
 import tkinter as tk
+import random
 
 
 class PopupManager:
@@ -7,15 +8,16 @@ class PopupManager:
         self.popups = {}  # Store references to popups by their IDs
         self.lock = Lock()  # Lock for thread-safe access to popups
 
-    def show_popup(self, message, popup_id=None, duration=0):
+    def show_popup(self, message, duration=0):
         """
         Display a popup notification in the top-right corner and return a reference to the popup.
         The popup can be manually closed using the popup ID.
 
         Args:
             message (str): The message to display in the popup.
-            popup_id (str): An optional ID for the popup to manage it.
         """
+
+        popup_id = f"popup_{random.randint(1000, 9999)}"
 
         def popup():
             popup_window = tk.Tk()
@@ -41,12 +43,14 @@ class PopupManager:
                     self.popups[popup_id] = popup_window
 
             if duration > 0:
-                popup_window.after(duration * 1000, lambda: self.close_popup(popup_id))
+                # Schedule the popup to close after the specified duration
+                popup_window.after(duration * 1000, popup_window.destroy)
 
             popup_window.mainloop()
 
         popup_thread = Thread(target=popup, daemon=True)
         popup_thread.start()
+        return popup_id
 
     def close_popup(self, popup_id):
         """
