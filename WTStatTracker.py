@@ -1,19 +1,58 @@
-from datetime import datetime
+#!/usr/bin/env python3
 import os
-from threading import Event, Thread, Timer
-from time import sleep
+import logging
 import traceback
-from pynput import keyboard
-import keyboard as kb
+from datetime import datetime
+from time import sleep
+from threading import Timer, Thread
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
+import queue
+
 import pyperclip
+from pynput import keyboard
+
+# For Windows only – install via pip install pywin32
+try:
+    import win32gui
+except ImportError:
+    win32gui = None
+
+# Local modules – adjust these imports as needed
 from src.char_helper import CharHelper
 from src.console_manager import ConsoleManager
 from src.deep_battle_parser import BattleParser
 from src.file_manager import FileManager
 from src.filter_manager import FilterManager
 from src.ui.ui_manager import UIManager
+from src.version_manager import VersionManager  # Adjust if needed
 
-pressed_keys = set()
+# Configuration constants (set these appropriately)
+CURRENT_VERSION = "1.0.0"
+REPO_OWNER = "YourRepoOwner"
+REPO_NAME = "YourRepoName"
+
+# Setup logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
+logger = logging.getLogger(__name__)
+
+
+def is_war_thunder_in_focus():
+    """
+    Check if the currently active window is War Thunder.
+    This function uses win32gui and is only available on Windows.
+    Adjust the title check as necessary.
+    """
+    if win32gui is None:
+        logger.warning("win32gui is not available; cannot check window focus on this OS.")
+        return True  # Fallback: assume true if we can't check
+    try:
+        hwnd = win32gui.GetForegroundWindow()
+        window_title = win32gui.GetWindowText(hwnd)
+        logger.debug("Active window title: %s", window_title)
+        return "War Thunder" in window_title
+    except Exception as e:
+        logger.error("Error checking window focus: %s", e)
+        return False
 
 
 class WTStatTracker:
@@ -21,11 +60,20 @@ class WTStatTracker:
         self.ui_manager = UIManager(self)
         self.filter_manager = FilterManager(self)
         self.console_manager = ConsoleManager(self)
-
         self.console_mode = False
-        self.listener = None
         self._battles = []
         self._save_timer = None
+
+        # Executor for parsing tasks (e.g., clipboard parsing)
+        self.executor = ThreadPoolExecutor(max_workers=1)
+
+        # Queue for hotkey-triggered parsing requests
+        self.parsing_queue = queue.Queue()
+        # Start the background thread to process parsing requests
+        self.queue_thread = Thread(target=self.process_parsing_requests, daemon=True)
+        self.queue_thread.start()
+
+        self.hotkeys = None
 
     def get_battles(self):
         return self.filter_manager.apply_filters(self._battles)
@@ -40,149 +88,143 @@ class WTStatTracker:
         FileManager.auto_save(self._battles)
 
     def handle_clipboard_parsing(self):
-        """Handle parsing of clipboard content with a timeout."""
-        
-        popup_id = self.ui_manager.popup_manager.show_popup(
-            "Parsing battle info...", 5
-        )
-        
-        sleep(0.5)
-
+        """Handle parsing of clipboard content using the thread pool."""
+        popup_id = self.ui_manager.popup_manager.show_popup("Parsing battle info...", 5)
+        sleep(0.3)  # Brief delay to let the popup appear
         clipboard_text = pyperclip.paste()
-        print("Parsing battle info...")
+        logger.info("Starting parsing of battle info from clipboard.")
 
-        # Define a container for the result
-        result = {"battle_info": None, "error": None}
-        finished_event = Event()
-
-        def parse_task():
-            """Run the parsing task."""
-            try:
-                result["battle_info"] = BattleParser.parse_battle_info(clipboard_text)
-            except Exception as e:
-                result["error"] = traceback.format_exc()
-            finally:
-                finished_event.set()  # Notify that parsing is complete
-
-        # Start the parsing thread
-        thread = Thread(target=parse_task)
-        thread.start()
-
-        # Wait for the thread to finish with a timeout
+        future = self.executor.submit(BattleParser.parse_battle_info, clipboard_text)
         timeout_seconds = 5
-        if not finished_event.wait(timeout_seconds):
-            print(f"Parsing battle info timed out after {timeout_seconds} seconds.")
+        
+        try:
+            battle_info = future.result(timeout=timeout_seconds)
+        except TimeoutError:
+            logger.error("Parsing battle info timed out after %s seconds.", timeout_seconds)
+            self.ui_manager.popup_manager.close_popup(popup_id)
+            return
+        except Exception:
+            logger.error("Error during parsing:\n%s", traceback.format_exc())
             self.ui_manager.popup_manager.close_popup(popup_id)
             return
 
-        # Check for errors in parsing
-        if result["error"]:
-            print(f"Error during parsing: {result['error']}")
-            self.ui_manager.popup_manager.close_popup(popup_id)
-            return
-
-        # Get the parsed battle info
-        battle_info = result["battle_info"]
         if not battle_info:
-            self.ui_manager.popup_manager.close_popup("parsing_popup")
-            return
-
-        # Check for duplicates
-        if any(
-            b["Duration"] == battle_info["Duration"]
-            and b["Kills"] == battle_info["Kills"]
-            for b in self._battles
-        ):
-            print("Duplicate battle info detected. Ignoring.")
             self.ui_manager.popup_manager.close_popup(popup_id)
             return
 
-        print("Parsed Battle Info:", battle_info)
+        # Check for duplicate battles by comparing key attributes.
+        if any(b.get("Duration") == battle_info.get("Duration") and b.get("Kills") == battle_info.get("Kills")
+               for b in self._battles):
+            logger.info("Duplicate battle info detected. Ignoring.")
+            self.ui_manager.popup_manager.close_popup(popup_id)
+            return
+
+        logger.info("Parsed Battle Info: %s", battle_info)
         self._battles.append(battle_info)
         self.ui_manager.update()
         self.ui_manager.popup_manager.close_popup(popup_id)
-        self.startSaveTimer()
-        
+        self.start_save_timer()
 
-    def startSaveTimer(self):
-        # Start timer to save battles if timer already exists, cancel it and start a new one
+    def process_parsing_requests(self):
+        """Background thread that processes parsing requests from the queue."""
+        while True:
+            request = self.parsing_queue.get()  # Blocks until an item is available
+            if request == "parse_clipboard":
+                logger.info("Processing parsing request from queue.")
+                self.handle_clipboard_parsing()
+            self.parsing_queue.task_done()
+
+    def trigger_parsing_request(self):
+        """
+        Callback for Ctrl+C: logs the event, checks if War Thunder is in focus,
+        and if so, adds a parsing request to the queue.
+        """
+        if not is_war_thunder_in_focus():
+            logger.info("War Thunder window is not in focus. Skipping parsing request.")
+            return
+        logger.info("War Thunder is in focus. Ctrl+C pressed. Adding parsing request to the queue.")
+        self.parsing_queue.put("parse_clipboard")
+
+    def start_save_timer(self):
+        """Start (or reset) a timer to auto-save battle data."""
         if self._save_timer:
             self._save_timer.cancel()
-            print("Save timer reset")
-            
-        self._save_timer = Timer(10, self.saveBattles)
+            logger.info("Save timer reset.")
+        self._save_timer = Timer(10, self.save_battles)
         self._save_timer.start()
-        print("Save timer started")
-        
-        
-    def saveBattles(self):
+        logger.info("Save timer started.")
+
+    def save_battles(self):
+        """Auto-save the battles and notify the user."""
         FileManager.auto_save(self._battles)
         self._save_timer = None
         self.ui_manager.popup_manager.show_popup("Battles saved", 2)
 
+    def toggle_console_mode(self):
+        """Toggle the console mode on or off."""
+        if self.console_manager.running:
+            logger.info("Exiting console mode...")
+            self.console_manager.stop_console()
+        else:
+            logger.info("Entering console mode...")
+            self.console_manager.run_console()
+
+    def print_battle_list(self):
+        """Print the battle list and summary (if not in console mode)."""
+        if not self.console_manager.running:
+            ConsoleManager.print_battle_list(self.get_battles())
+            ConsoleManager.print_summary(self.get_battles())
+
+    def save_results(self):
+        """Save the current battles to a results file."""
+        today = datetime.now().strftime("%Y-%m-%d")
+        FileManager.save_result(today, self._battles)
+
     def run(self):
         """Run the main application loop."""
-        print(
-            "Press 'ctrl+c' to parse battle info from clipboard."
-        )
-        
+        logger.info("Starting UI Manager...")
         self.ui_manager.start()
         sleep(1)
         self._battles = FileManager.auto_load()
         self.ui_manager.update()
 
-        def on_press(key):
-            if key in pressed_keys:
-                return
-
-            pressed_keys.add(key)
-
-            try:
-                if hasattr(key, "char"):
-                    unicode_order = CharHelper.get_unicode_order_from_char(key.char)
-
-                    if CharHelper.is_ctrl_unicode(key.char):
-                        ctrl_char = CharHelper.character_from_ctrl_unicode(
-                            unicode_order
-                        )
-                        if ctrl_char == "c":  # Ctrl+C detected
-                            pressed_keys.clear()
-                            self.handle_clipboard_parsing()
-
-                    elif key.char == "\\":  # Toggle console mode
-                        if self.console_manager.running:
-                            print("Exiting console mode...")
-                            self.console_manager.stop_console()
-                        else:
-                            print("Entering console mode...")
-                            self.console_manager.run_console()
-
-                    elif key.char == "l" and not self.console_manager.running:
-                        ConsoleManager.print_battle_list(self.get_battles())
-                        ConsoleManager.print_summary(self.get_battles())
-
-                if key == keyboard.Key.home:
-                    today = datetime.now().strftime("%Y-%m-%d")
-                    FileManager.save_result(today, self._battles)
-                elif key == keyboard.Key.end:
-                    print("Exiting...")
-                    return False
-
-            except Exception as e:
-                print(f"Error processing key press: {e}")
-
-        def on_release(key):
-            pressed_keys.discard(key)
-
-        with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
-            self.listener = listener
-            listener.join()
+        # Define hotkey actions using pynput's GlobalHotKeys.
+        hotkey_actions = {
+            'c': self.trigger_parsing_request,  # Now adds a parsing request to the queue.
+            '\\': self.toggle_console_mode,
+            'l': self.print_battle_list,
+            '<home>': self.save_results,
+            '<end>': self.stop,
+        }
+        self.hotkeys = keyboard.GlobalHotKeys(hotkey_actions)
+        logger.info("Hotkeys registered. Waiting for key presses...")
+        self.hotkeys.start()
+        self.hotkeys.join()
 
     def stop(self):
         """Gracefully stop the application."""
-        print("Stopping WTStatTracker...")
-
+        logger.info("Exiting... Stopping WTStatTracker.")
+        if self.hotkeys:
+            self.hotkeys.stop()
         sleep(1)
-        # Exit application
-        print("Application stopped.")
+        logger.info("Application stopped.")
+        # Shutdown executor and exit the process.
+        self.executor.shutdown(wait=False)
         os._exit(0)
+
+
+# --- Main Entry Point ---
+if __name__ == "__main__":
+    try:
+        version_manager = VersionManager(CURRENT_VERSION, REPO_OWNER, REPO_NAME)
+        version_manager.check_for_updates()
+    except Exception as e:
+        logger.error("Version manager error: %s", e)
+
+    tracker = WTStatTracker()
+    try:
+        tracker.run()
+    except KeyboardInterrupt:
+        logger.info("KeyboardInterrupt received. Exiting...")
+    except Exception as e:
+        logger.error("An unexpected error occurred: %s", e)
