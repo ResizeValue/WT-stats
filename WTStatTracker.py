@@ -190,7 +190,7 @@ class WTStatTracker:
 
         # Define hotkey actions using pynput's GlobalHotKeys.
         hotkey_actions = {
-            'c': self.trigger_parsing_request,  # Now adds a parsing request to the queue.
+            '<ctrl>+c': self.trigger_parsing_request,  # Now adds a parsing request to the queue.
             '\\': self.toggle_console_mode,
             'l': self.print_battle_list,
             '<home>': self.save_results,
