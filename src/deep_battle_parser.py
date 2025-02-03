@@ -55,7 +55,6 @@ class BattleParser:
                 for line in unit_section.splitlines()
                 if ":" in line
             ]
-
         return []
 
     @staticmethod
@@ -69,7 +68,6 @@ class BattleParser:
         Returns:
             dict: Extracted battle information.
         """
-
         if "Поражение" in text or "Победа" in text:
             print("Parsing battle info for Russian logs.")
             return BattleParser._parse_battle_info(text, "ru")
@@ -181,36 +179,146 @@ class BattleParser:
         Returns:
             str: The battle type and nation in the format "type ; nation".
         """
-        researched_units = BattleParser.parse_researched_units(text)
+        activity_units = BattleParser.parse_time_played_vehicles(text)
 
-        if any(unit in researched_units for unit in vehicles.usa_tanks):
+        if any(unit in activity_units for unit in vehicles.usa_tanks):
             return "ground ; USA"
 
-        if any(unit in researched_units for unit in vehicles.usa_aircraft):
+        if any(unit in activity_units for unit in vehicles.usa_aircraft):
             return "air ; USA"
 
-        if any(unit in researched_units for unit in vehicles.ussr_tanks):
+        if any(unit in activity_units for unit in vehicles.ussr_tanks):
             return "ground ; USSR"
 
-        if any(unit in researched_units for unit in vehicles.ussr_aircraft):
+        if any(unit in activity_units for unit in vehicles.ussr_aircraft):
             return "air ; USSR"
 
-        if any(unit in researched_units for unit in vehicles.uk_tanks):
+        if any(unit in activity_units for unit in vehicles.uk_tanks):
             return "ground ; UK"
 
-        if any(unit in researched_units for unit in vehicles.german_ground_vehicles):
+        if any(unit in activity_units for unit in vehicles.german_ground_vehicles):
             return "ground ; Germany"
 
-        if any(unit in researched_units for unit in vehicles.french_tanks):
+        if any(unit in activity_units for unit in vehicles.french_tanks):
             return "ground ; France"
 
-        if any(unit in researched_units for unit in vehicles.french_aircraft):
+        if any(unit in activity_units for unit in vehicles.french_aircraft):
             return "air ; France"
 
-        if any(unit in researched_units for unit in vehicles_ru.ussr_tanks_ru):
+        if any(unit in activity_units for unit in vehicles_ru.ussr_tanks_ru):
             return "ground ; USSR"
 
-        if any(unit in researched_units for unit in vehicles_ru.ussr_aircraft_ru):
+        if any(unit in activity_units for unit in vehicles_ru.ussr_aircraft_ru):
             return "air ; USSR"
 
         return "Unknown ; Unknown"
+
+    @staticmethod
+    def parse_time_played_vehicles(text):
+        """
+        Parse vehicles (with their played-time parameters) from the "Time Played" / "Время игры" section.
+
+        For English logs the section header is "Time Played" and the reward is labeled "RP".
+        For Russian logs the header is "Время игры" and the reward is labeled "ОИ".
+
+        Example English section:
+
+            Time Played                     11:57                15865 RP
+                Mirage F1C-200    86%    11:57    3777 + (PA)7555 + (Booster)756 + (Talismans)3777 = 15865 RP
+
+        Example Russian section:
+
+            Время игры                            4:52                6544 ОИ
+                Mirage F1C-200    87%    4:52    1558 + (ПА)3116 + (Усилитель)312 + (Талисманы)1558 = 6544 ОИ
+
+        Returns:
+            dict: A dictionary mapping vehicle names to a dict with keys:
+                  - For English logs: "RP", "percent", "duration"
+                  - For Russian logs: "ОИ", "percent", "duration"
+        """
+        # Detect language based on the header present
+        if "Время игры" in text:
+            # Russian log
+            block_pattern = r"Время игры\s+[\d:]+\s+[\d,]+\s*ОИ\s*\n((?:\s+.*\n)+)"
+            line_pattern = re.compile(
+                r"^\s*(?P<vehicle>.+?)\s+(?P<percent>\d+%)\s+(?P<duration>[\d:]+)\s+.*?=\s*(?P<oi_total>\d+)\s*ОИ",
+                re.MULTILINE,
+            )
+            reward_key = "ОИ"
+        elif "Time Played" in text:
+            # English log
+            block_pattern = r"Time Played\s+[\d:]+\s+[\d,]+\s*RP\s*\n((?:\s+.*\n)+)"
+            line_pattern = re.compile(
+                r"^\s*(?P<vehicle>.+?)\s+(?P<percent>\d+%)\s+(?P<duration>[\d:]+)\s+.*?=\s*(?P<rp_total>\d+)\s*RP",
+                re.MULTILINE,
+            )
+            reward_key = "RP"
+        else:
+            print("No recognized 'Time Played' or 'Время игры' section found.")
+            return {}
+
+        block_match = re.search(block_pattern, text)
+        if not block_match:
+            print("No time-played block found.")
+            return {}
+
+        block = block_match.group(1)
+        vehicles_time_played = {}
+
+        for match in line_pattern.finditer(block):
+            vehicle = match.group("vehicle").strip()
+            percent = match.group("percent").strip()
+            duration = match.group("duration").strip()
+            # Depending on language, extract the reward using the correct group name.
+            if reward_key == "ОИ":
+                reward = int(match.group("oi_total"))
+            else:
+                reward = int(match.group("rp_total"))
+            vehicles_time_played[vehicle] = {
+                reward_key: reward,
+                "percent": percent,
+                "duration": duration,
+            }
+
+        return vehicles_time_played
+
+
+# --- Example usage ---
+if __name__ == "__main__":
+    # Example English log snippet
+    english_log = r"""
+Victory in the [Operation] Battle for Vietnam mission!
+
+Destruction of aircraft             1     2944 SL      228 RP    
+    5:15    Mirage F1C-200    Matra R550 Magic 2    MiG-23MLA()     89 mission points    Own target (the rest of the reward)    1784 + (PA)892 + (Booster)268 = 2944 SL    54 + (PA)109 + (Booster)11 + (Talismans)54 = 228 RP
+
+... (other sections) ...
+
+Time Played                     11:57                15865 RP    
+    Mirage F1C-200    86%    11:57    3777 + (PA)7555 + (Booster)756 + (Talismans)3777 = 15865 RP
+
+... (rest of log) ...
+    """
+
+    # Example Russian log snippet
+    russian_log = r"""
+Победа в миссии "[Альтернативная история] Испания"!
+
+Уничтожение авиации                      1     2944 СЛ     228 ОИ    
+    3:38    Mirage F1C-200    Matra R550 Magic 2    F-111F     89 очков миссии    Своей цели (остаток награды)    1784 + (ПА)892 + (Усилитель)268 = 2944 СЛ    54 + (ПА)109 + (Усилитель)11 + (Талисманы)54 = 228 ОИ
+
+... (other sections) ...
+
+Время игры                            4:52                6544 ОИ    
+    Mirage F1C-200    87%    4:52    1558 + (ПА)3116 + (Усилитель)312 + (Талисманы)1558 = 6544 ОИ
+
+... (rest of log) ...
+    """
+
+    print("English Time Played Vehicles:")
+    vehicles_played_en = BattleParser.parse_time_played_vehicles(english_log)
+    print(vehicles_played_en)
+
+    print("\nRussian Time Played Vehicles:")
+    vehicles_played_ru = BattleParser.parse_time_played_vehicles(russian_log)
+    print(vehicles_played_ru)
