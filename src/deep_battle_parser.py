@@ -180,35 +180,70 @@ class BattleParser:
             str: The battle type and nation in the format "type ; nation".
         """
         activity_units = BattleParser.parse_time_played_vehicles(text)
+        keys = activity_units.keys()
 
-        if any(unit in activity_units for unit in vehicles.usa_tanks):
+        print("\n\n")
+        print("Vehicle keys:", keys)
+        print("\n\n")
+
+        if any(unit in keys for unit in vehicles.usa_tanks):
             return "ground ; USA"
 
-        if any(unit in activity_units for unit in vehicles.usa_aircraft):
+        if any(unit in keys for unit in vehicles.usa_aircraft):
             return "air ; USA"
 
-        if any(unit in activity_units for unit in vehicles.ussr_tanks):
+        if any(unit in keys for unit in vehicles.ussr_tanks):
             return "ground ; USSR"
 
-        if any(unit in activity_units for unit in vehicles.ussr_aircraft):
+        if any(unit in keys for unit in vehicles.ussr_aircraft):
             return "air ; USSR"
 
-        if any(unit in activity_units for unit in vehicles.uk_tanks):
+        if any(unit in keys for unit in vehicles.uk_tanks):
             return "ground ; UK"
 
-        if any(unit in activity_units for unit in vehicles.german_ground_vehicles):
+        if any(unit in keys for unit in vehicles.german_ground_vehicles):
             return "ground ; Germany"
 
-        if any(unit in activity_units for unit in vehicles.french_tanks):
+        if any(unit in keys for unit in vehicles.german_aircraft):
+            return "air ; Germany"
+
+        if any(unit in keys for unit in vehicles.french_tanks):
             return "ground ; France"
 
-        if any(unit in activity_units for unit in vehicles.french_aircraft):
+        if any(unit in keys for unit in vehicles.french_aircraft):
             return "air ; France"
 
-        if any(unit in activity_units for unit in vehicles_ru.ussr_tanks_ru):
+        if any(unit in keys for unit in vehicles.japan_tanks):
+            return "ground ; Japan"
+
+        # if any(unit in keys for unit in vehicles.japan_aircraft):
+        #     return "air ; Japan"
+
+        if any(unit in keys for unit in vehicles.italy_tanks):
+            return "ground ; Italy"
+
+        # if any(unit in keys for unit in vehicles.italy_aircraft):
+        #     return "air ; Italy"
+
+        if any(unit in keys for unit in vehicles.sweden_tanks):
+            return "ground ; Sweden"
+
+        # if any(unit in keys for unit in vehicles.sweden_aircraft):
+        #     return "air ; Sweden"
+
+        if any(unit in keys for unit in vehicles.china_tanks):
+            return "ground ; China"
+
+        # if any(unit in keys for unit in vehicles.china_aircraft):
+        #     return "air ; China"
+
+        if any(unit in keys for unit in vehicles.israel_tanks):
+            return "ground ; Israel"
+
+        if any(unit in keys for unit in vehicles_ru.ussr_tanks_ru):
             return "ground ; USSR"
 
-        if any(unit in activity_units for unit in vehicles_ru.ussr_aircraft_ru):
+        if any(unit in keys for unit in vehicles_ru.ussr_aircraft_ru):
             return "air ; USSR"
 
         return "Unknown ; Unknown"

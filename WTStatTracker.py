@@ -134,9 +134,12 @@ class WTStatTracker:
         """Background thread that processes parsing requests from the queue."""
         while True:
             request = self.parsing_queue.get()
-            if request[0] == "parse_clipboard":
-                self.handle_clipboard_parsing(request[1])
-            self.parsing_queue.task_done()
+            if request:
+                sleep(0.3)  # Brief delay to let the popup appear
+                clipboard_text = pyperclip.paste()
+                print(clipboard_text)
+                self.handle_clipboard_parsing(clipboard_text)
+                self.parsing_queue.task_done()
 
     def trigger_parsing_request(self):
         """
@@ -151,10 +154,7 @@ class WTStatTracker:
             "War Thunder is in focus. Ctrl+C pressed. Adding parsing request to the queue."
         )
 
-        sleep(0.3)  # Brief delay to let the popup appear
-        clipboard_text = pyperclip.paste()
-
-        self.parsing_queue.put(("parse_clipboard", clipboard_text))
+        self.parsing_queue.put(("parse_clipboard"))
 
     def start_save_timer(self):
         """Start (or reset) a timer to auto-save battle data."""

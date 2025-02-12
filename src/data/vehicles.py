@@ -777,7 +777,6 @@ usa_aircraft = [
     "Spitfire LF Mk IXc(USA)",
     "TBD-1",
     "TBF-1C",
-    "MQ-1",
     "XA-38",
     "XF5F",
     "XP-50",
