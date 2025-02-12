@@ -141,7 +141,7 @@ class UIWindow:
         )
         self.summary_label.pack(fill="x", padx=5)
 
-        self.refresh_ui()  # Start the periodic UI refresh
+        # self.refresh_ui()  # Start the periodic UI refresh
 
         self.window.protocol("WM_DELETE_WINDOW", self.close)
         self.window.mainloop()
