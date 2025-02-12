@@ -47,7 +47,19 @@ class UIWindow:
         self.nation_filter_dropdown = ttk.Combobox(
             filter_frame,
             textvariable=self.nation_filter_var,
-            values=["All", "USA", "Germany", "USSR", "France", "UK"],
+            values=[
+                "All",
+                "USA",
+                "Germany",
+                "USSR",
+                "France",
+                "UK",
+                "Japan",
+                "Italy",
+                "China",
+                "Sweden",
+                "Israel",
+            ],
         )
         self.nation_filter_dropdown.pack(side="left", padx=5)
         self.nation_filter_dropdown.bind("<<ComboboxSelected>>", self.apply_filters)
@@ -258,6 +270,8 @@ class UIWindow:
 
         self.tracker.filter_manager.set_nation_filter(nation_filter)
         self.tracker.filter_manager.set_battle_type_filter(battle_type_filter)
+
+        self.update()
 
     def clear_filters(self):
         """Clear all filters and refresh the table."""

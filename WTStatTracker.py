@@ -82,6 +82,7 @@ class WTStatTracker:
 
     def set_battles(self, battles):
         self._battles = battles
+        self.ui_manager.update()
 
     def new_session(self):
         """Start a new session."""
@@ -202,9 +203,9 @@ class WTStatTracker:
         # Define hotkey actions using pynput's GlobalHotKeys.
         hotkey_actions = {
             "<ctrl>+c": self.trigger_parsing_request,  # Now adds a parsing request to the queue.
-            "\\": self.toggle_console_mode,
-            "l": self.print_battle_list,
-            "<home>": self.save_results,
+            # "\\": self.toggle_console_mode,
+            # "l": self.print_battle_list,
+            # "<home>": self.save_results,
             "<end>": self.stop,
         }
         self.hotkeys = keyboard.GlobalHotKeys(hotkey_actions)
