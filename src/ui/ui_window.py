@@ -271,6 +271,8 @@ class UIWindow:
         self.tracker.filter_manager.set_nation_filter(nation_filter)
         self.tracker.filter_manager.set_battle_type_filter(battle_type_filter)
 
+        self.update()
+
     def clear_filters(self):
         """Clear all filters and refresh the table."""
         self.tracker.filter_manager.clear_filters()
