@@ -201,6 +201,9 @@ class BattleParser:
         if any(unit in keys for unit in vehicles.uk_tanks):
             return "ground ; UK"
 
+        if any(unit in keys for unit in vehicles.uk_aircraft):
+            return "air ; UK"
+
         if any(unit in keys for unit in vehicles.german_ground_vehicles):
             return "ground ; Germany"
 
