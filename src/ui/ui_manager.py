@@ -2,6 +2,7 @@ from threading import Thread
 from src.ui.live_stat_manager import LiveStatManager
 from src.ui.popup_manager import PopupManager
 from src.ui.ui_window import UIWindow
+from threading import Lock
 
 
 class UIManager:
@@ -11,7 +12,8 @@ class UIManager:
         self.ui_window = UIWindow(tracker)
         self.tracker = tracker
         self.ui_window_thread = None
-        
+        self.update_lock = Lock()
+
     def run_ui_window(self):
         """Run the UI window in a separate thread."""
         if self.ui_window_thread and self.ui_window_thread.is_alive():
@@ -20,23 +22,27 @@ class UIManager:
 
         self.ui_window_thread = Thread(target=self.ui_window.show, daemon=True)
         self.ui_window_thread.start()
-    
+
     def stop_ui_window(self):
         """Stop the UI window thread."""
         if self.ui_window_thread and self.ui_window_thread.is_alive():
             self.ui_window_thread.join()
-            
+
     def start(self):
         """Start the UI components."""
         self.live_stats.start()
         self.run_ui_window()
-    
+
     def update(self):
         """Update the UI window with the latest stats."""
+        if self.update_lock.locked():
+            print("Update is already in process.")
+            return
         thread = Thread(target=self._update, daemon=True)
         thread.start()
-    
+
     def _update(self):
         """Update the UI window with the latest stats."""
-        self.live_stats.update()
-        self.ui_window.update()
+        with self.update_lock:
+            self.live_stats.update()
+            self.ui_window.update()
