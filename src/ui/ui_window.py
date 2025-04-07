@@ -1,6 +1,8 @@
 from tkinter import Tk, ttk, StringVar, Label, Button, Frame, Toplevel
 from typing import TYPE_CHECKING
 
+from src.settings import CURRENT_VERSION
+
 if TYPE_CHECKING:
     from WTStatTracker import WTStatTracker
 
@@ -45,7 +47,7 @@ class UIWindow:
             return
 
         self.window = Tk()
-        self.window.title("WTStatTracker - Battles")
+        self.window.title("WTStatTracker v" + CURRENT_VERSION + " - Battles")
         self.window.geometry("1200x600")  # Adjust width for longer headers
 
         self.nation_filter_var = StringVar(value="All")
