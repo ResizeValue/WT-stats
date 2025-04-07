@@ -53,8 +53,6 @@ class WTStatTracker:
         self.hotkeys = None
 
         self.queue_thread = Thread(target=self.process_parsing_requests, daemon=True)
-        self.queue_thread.start()
-        logger.info("Parsing queue thread started.")
 
     def get_battles(self):
         return self.filter_manager.apply_filters(self._battles)
@@ -141,36 +139,35 @@ class WTStatTracker:
 
     def run(self):
         logger.info("Starting application...")
-        self.ui_manager.start()
-        sleep(1)
-
-        def log_and_execute(action_name, action):
-            def wrapper():
-                logger.info("Hotkey pressed: %s", action_name)
-                action()
-
-            return wrapper
-
-        hotkey_actions = {
-            "<ctrl>+c": log_and_execute(
-                "Copy (trigger parsing request)", self.trigger_parsing_request
-            ),
-            "<end>": log_and_execute("End (stop application)", self.stop),
-        }
-
-        self.hotkeys = keyboard.GlobalHotKeys(hotkey_actions)
-        sleep(0.2)
-        self.hotkeys.start()
-        sleep(1)
-        self.hotkeys.join()
-        sleep(1)
-        logger.info("Hotkeys registered.")
 
         self._battles = FileManager.auto_load()
-        sleep(0.5)
-        self.ui_manager.update()
+        if self._battles is not None:
+            logger.info("Loaded autosave.")
+
         sleep(0.1)
+        self.ui_manager.start()
+        sleep(1)
+        self.ui_manager.update()
+
+        logger.info("UI started.")
+
+        hotkey_actions = {
+            "<ctrl>+c": self.trigger_parsing_request,
+            "<end>": self.stop,
+        }
+
+        logger.info("Registring hotkeys...")
+        self.hotkeys = keyboard.GlobalHotKeys(hotkey_actions)
+        self.hotkeys.start()
+        logger.info("Hotkeys registered.")
+        sleep(0.1)
+
+        self.queue_thread.start()
+        logger.info("Parsing queue thread started.")
         logger.info("Application started.")
+        sleep(0.3)
+
+        self.hotkeys.join()
 
     def stop(self):
         logger.info("Stopping application.")
