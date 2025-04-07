@@ -108,7 +108,6 @@ class WTStatTracker:
                     self.handle_clipboard_parsing(clipboard_text)
                     self.parsing_queue.task_done()
             except queue.Empty:
-                logger.debug("Parsing queue is empty.")
                 continue  # Avoid blocking indefinitely
             except Exception as e:
                 logger.error(
@@ -144,18 +143,28 @@ class WTStatTracker:
         logger.info("Starting application...")
         self.ui_manager.start()
         sleep(1)
-        self._battles = FileManager.auto_load()
-        self.ui_manager.update()
+
+        def log_and_execute(action_name, action):
+            def wrapper():
+                logger.info("Hotkey pressed: %s", action_name)
+                action()
+
+            return wrapper
 
         hotkey_actions = {
-            "<ctrl>+c": self.trigger_parsing_request,
-            "<end>": self.stop,
+            "<ctrl>+c": log_and_execute(
+                "Copy (trigger parsing request)", self.trigger_parsing_request
+            ),
+            "<end>": log_and_execute("End (stop application)", self.stop),
         }
 
         self.hotkeys = keyboard.GlobalHotKeys(hotkey_actions)
         logger.info("Hotkeys registered.")
         self.hotkeys.start()
         self.hotkeys.join()
+
+        self._battles = FileManager.auto_load()
+        self.ui_manager.update()
 
     def stop(self):
         logger.info("Stopping application.")
