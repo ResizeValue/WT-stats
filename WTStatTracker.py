@@ -157,15 +157,14 @@ class WTStatTracker:
         }
 
         self.hotkeys = keyboard.GlobalHotKeys(hotkey_actions)
-        sleep(0.2)
         self.hotkeys.start()
-        sleep(1)
+        sleep(0.2)
         self.hotkeys.join()
-        sleep(1)
+        sleep(0.2)
         logger.info("Hotkeys registered.")
 
         self._battles = FileManager.auto_load()
-        sleep(0.5)
+        sleep(0.2)
         self.ui_manager.update()
         sleep(0.1)
 
