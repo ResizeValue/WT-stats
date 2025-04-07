@@ -53,8 +53,6 @@ class WTStatTracker:
         self.hotkeys = None
 
         self.queue_thread = Thread(target=self.process_parsing_requests, daemon=True)
-        self.queue_thread.start()
-        logger.info("Parsing queue thread started.")
 
     def get_battles(self):
         return self.filter_manager.apply_filters(self._battles)
@@ -170,6 +168,9 @@ class WTStatTracker:
         sleep(0.5)
         self.ui_manager.update()
         sleep(0.1)
+
+        self.queue_thread.start()
+        logger.info("Parsing queue thread started.")
         logger.info("Application started.")
 
     def stop(self):
