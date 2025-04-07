@@ -69,8 +69,8 @@ class WTStatTracker:
         FileManager.auto_save(self._battles)
 
     def handle_clipboard_parsing(self, text):
-        popup_id = self.ui_manager.popup_manager.show_popup("Parsing battle info...", 5)
         logger.info("Parsing clipboard text: %s", text)
+        popup_id = self.ui_manager.popup_manager.show_popup("Parsing battle info...", 5)
 
         future = self.executor.submit(BattleParser.parse_battle_info, text)
         try:
@@ -98,15 +98,27 @@ class WTStatTracker:
                 request = self.parsing_queue.get(timeout=1)
                 if request:
                     sleep(0.3)
+                    logger.info("Processing parsing request: %s", request)
                     clipboard_text = pyperclip.paste()
+
+                    if not clipboard_text:
+                        logger.warning("Clipboard is empty.")
+                        continue
+
                     self.handle_clipboard_parsing(clipboard_text)
                     self.parsing_queue.task_done()
             except queue.Empty:
+                logger.debug("Parsing queue is empty.")
                 continue  # Avoid blocking indefinitely
             except Exception as e:
                 logger.error(
                     "Error in parsing queue processing: %s", traceback.format_exc()
                 )
+            finally:
+                sleep(0.1)  # Avoid busy waiting
+                if not self.running:
+                    logger.info("Stopping parsing request processing.")
+                    break
 
     def trigger_parsing_request(self):
         if not is_war_thunder_in_focus():
